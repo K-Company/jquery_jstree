@@ -1,51 +1,28 @@
+OVERVIEW
+--------
+Integration of the jsTree jQuery plugin (http://www.jstree.com/) as Drupal libraries.
 
+INSTALLATION
+------------
 
-//DEPENDENCIES
-  Jquery 1.4.2 Learn to install http://dominiquedecooman.com/blog/drupal-install-jquery142
+1. Copy the content of jstree_pre1.0_stable.zip archive to jquery directory to your sites/all/libraries/jstree directory.
 
-//INSTALL
-  
-  Download the jstree plugin http://www.jstree.com/
-  Extract the contents of the folder into [sites/all/modules/contrib]/jquery_jstree/jquery
-  Enable module</li>
-  To include the plugin on call jquery_jstree_plugin_add() or jq_add('jstree') when using jq module;
-  To add a tree format like this for example (for more read jstree docs): 
-  
-  Drupal.behaviors.ews_gestconf_services = function (context) {
-    $(function () {
-    
-      
-      $("#servicesgestconf").jstree({ 
-        "json_data" : {
-          "data" : [
-            { 
-              "data" : "A node", 
-              "children" : [ "Child 1", "Child 2" ]
-            },
-            { 
-              "attr" : { "id" : "li.node.id" }, 
-              "data" : { 
-                "title" : "Long format demo", 
-                "attr" : { "href" : "#" } 
-              } 
-            }
-          ]
-        },
-        "themes" : {"theme" : "default",
-              "url" : "sites/all/modules/custom/jquery_jstree/jquery/themes/default/style.css"
-        },
-        
-        "plugins" : [ "themes", "json_data" ]
-      });
-    
-      
-      
-    });
-    
-  }
+2. Enable the module at Administer >> Site building >> Modules.
 
-  The url is very important, jstree doesnt correctly add the path to the ccs file. You could create a js var and add it with drupal_add_js instead of hardcoding the path like in the example.
+USAGE
+-----
+To include the libraries to your page, use one of
+<?php
+  // Adding the libary directly
+  drupal_add_library('jquery_jstree', 'jstree');
+  // Attaching to library to a Render/From API element
+  $element['#attached']['library'] = array('jquery_jstree', 'jstree');
+?>
 
-//INTEGRATION
-  
-  This module integrates with http://drupl.org/project/jq
+You can also use the jstree #type for an element:
+<?php
+  $page['tree'] = array(
+    '#type' => 'jstree',
+    'data' => '<ul><li><a>Item 1</a><ul><li><a>Item 1.1</a></li><li><a>Item 1.2</a></li></ul></li><li><a>Item 2</a><ul><li><a>Item 2.1</a></li><li><a>Item 2.2</a></li></ul></li></ul>',
+  );
+?>

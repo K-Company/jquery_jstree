@@ -1,4 +1,5 @@
 name = Jquery Jstree
-description = Integrates the jquery jstree plugin 
-core = 6.x
+description = Integrates the jquery jsTree plugin 
+core = 7.x
 
+dependencies[] = libraries
