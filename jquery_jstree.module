@@ -1,6 +1,5 @@
 <?php
 
-
 /**
  * Adds the jQuery jstree plugin to a page.
  * @deprecated
@@ -14,10 +13,14 @@ function jquery_jstree_plugin_add() {
  * Implements hook_library().
  */
 function jquery_jstree_library() {
-  $libraries = libraries_get_libraries();
-  if (empty($libraries['jstree']) || !file_exists($libraries['jstree'] . '/jquery.jstree.js')) {
-    drupal_set_message('Cannot find jsTree library directory.', 'error');
-    return array();
+  $library_path = variable_get('jquery_jstree_library_path', NULL);
+  if (empty($library_path) || !is_dir($library_path) || !file_exists($library_path . '/jquery.jstree.js')) {
+    $library_path = libraries_get_path('jstree');
+    if (!file_exists($library_path . '/jquery.jstree.js')) {
+      drupal_set_message('Cannot find jsTree library directory.', 'error');
+      return array();
+    }
+    variable_set('jquery_jstree_library_path', $library_path);
   }
   return array(
     'jstree' => array(
@@ -25,7 +28,7 @@ function jquery_jstree_library() {
       'website' => 'http://www.jstree.com/',
       'version' => 'pre1.0',
       'js' => array(
-        $libraries['jstree'] . '/jquery.jstree.js' => array(),
+        $library_path . '/jquery.jstree.js' => array(),
       ),
     )
   );
@@ -44,8 +47,6 @@ function jquery_jstree_theme() {
 
 /**
  * Implements hook_element_info().
- *
- * @TODO jsTree as input element
  */
 function jquery_jstree_element_info() {
   $types['jstree'] = array(
@@ -58,11 +59,9 @@ function jquery_jstree_element_info() {
       'js' => array(drupal_get_path('module', 'jquery_jstree') . '/jquery_jstree.js')
     ),
     '#attributes' => array(),
-    '#options' => array(),
-// @TODO jsTree as input element
-//    '#input' => FALSE,
-//    '#process' => array('jquery_jstree_element_process'),
-//    '#element_validate' => array('jquery_jstree_element_validate'),
+    '#tree_options' => array(),
+    '#input' => TRUE,
+    '#process' => array('ajax_process_form'),
   );
   return $types;
 }
@@ -76,16 +75,19 @@ function jquery_jstree_element_info() {
 function jquery_jstree_element_pre_render($element) {
   // Ensure ID
   if (empty($element['#attributes']['id'])) {
-    $element['#attributes']['id'] = drupal_html_id('jstree');
+    $element['#attributes']['id'] = isset($element['#id']) ? $element['#id'] : drupal_html_id('jstree');
+  }
+  if (!empty($element['#name'])) {
+    $element['#attributes']['data-name'] = $element['#name'];
   }
   // Ensure plugins options is an array
   if (empty($element['#options']['plugins']) || !is_array($element['#options']['plugins'])) {
-    $element['#options']['plugins'] = empty($element['#options']['plugins']) ? array() : array($element['#options']['plugins']);
+    $element['#tree_options']['plugins'] = empty($element['#tree_options']['plugins']) ? array() : array($element['#tree_options']['plugins']);
   }
   // Attach JavaScript settings, used by our behavior to initialize the tree.
   $element['#attached']['js'][] = array(
     'type' => 'setting',
-    'data' => array('jstree' => array($element['#attributes']['id'] => $element['#options']))
+    'data' => array('jstree' => array($element['#attributes']['id'] => $element['#tree_options']))
   );
   return $element;
 }
@@ -99,41 +101,3 @@ function theme_jstree($variables) {
   $element =& $variables['element'];
   return '<div ' . drupal_attributes($element['#attributes']) . '>' . drupal_render_children($element) . '</div>';
 }
-
-/**
- * Form process callback for jsTree element.
- *
- * @TODO jsTree as input element
- *
- * @param array $element
- * @param array $form_state
- * @param array $complete_form
- */
-//function jquery_jstree_element_process($element, &$form_state, $complete_form) {
-//
-//}
-
-/**
- * Validation callback for jsTree element.
- *
- * @TODO jsTree as input element
- *
- * @param array $element
- * @param array $form_state
- */
-//function jquery_jstree_element_validate($element, &$form_state) {
-//
-//}
-
-/**
- * Value callback for jsTree element.
- *
- * @TODO jsTree as input element
- *
- * @param array $element
- * @param array $input
- * @param array $form_state
- */
-//function form_type_jstree_value(&$element, $input = FALSE, $form_state = NULL) {
-//
-//}
