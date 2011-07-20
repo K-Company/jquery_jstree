@@ -1,0 +1,265 @@
+<?php
+
+/*
+ * Implements hook_field_widget_info().
+ */
+function jstree_taxonomy_field_widget_info() {
+  return array(
+    'jstree_taxonomy' => array(
+      'label' => t('jsTree'),
+      'field types' => array('taxonomy_term_reference'),
+      'settings' => array(
+        'ajax' => TRUE,
+      ),
+      'behaviors' => array(
+        'multiple values' => FIELD_BEHAVIOR_CUSTOM,
+      ),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_widget_form().
+ */
+function jstree_taxonomy_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+  $default_value = array();
+  $initially_select = array();
+  $initially_load = array();
+  foreach ($items as $item) {
+    $default_value[] = $item['tid'];
+    $initially_select[] = 'term-' . $item['tid'];
+    foreach(jstree_taxonomy_get_parents_all(taxonomy_term_load($item['tid'])) as $lineage) {
+      foreach ($lineage as &$term) {
+        $initially_load[] = 'term-' . $term->tid;
+      }
+    }
+  }
+  $allowed_value = reset($field['settings']['allowed_values']);
+  $vocabulary = taxonomy_vocabulary_machine_name_load($allowed_value['vocabulary']);
+  $element += array(
+    '#type' => 'jstree',
+    '#default_value' => $default_value,
+    '#element_validate' => array('jstree_taxonomy_validate'),
+    '#attached' => array(
+      'js' => array(drupal_get_path('module', 'jstree_taxonomy') . '/jstree_taxonomy.js'),
+    ),
+    '#tree_options' => array(
+      'plugins' => array('core', 'ui', 'themes', 'json_data', 'drupal_taxonomy'),
+      'core' => array(
+        'initially_load' => $initially_load
+      ),
+      'ui' => array(
+        'select_limit' => $field['cardinality'],
+        'initially_select' => $initially_select,
+      ),
+      'drupal_taxonomy' => array(
+        'vid' => (integer)$vocabulary->vid,
+        'parent' => (integer)$allowed_value['parent'],
+      )
+    ),
+  );
+
+  return $element;
+}
+
+/**
+ * Validation callback for jsTree Taxonomy widget.
+ */
+function jstree_taxonomy_validate($element, &$form_state) {
+  $items = drupal_array_get_nested_value($form_state['values'], $element['#parents']);
+  foreach ($items as $key => &$item) {
+    $items[$key] = array('tid' => $item);
+  }
+  drupal_array_set_nested_value($form_state['values'], $element['#parents'], $items);
+}
+
+/**
+ * Implements hook_menu()
+ */
+function jstree_taxonomy_menu() {
+  return array(
+     // Path for AJAX request to load the children of a taxonomy term
+    'taxonomy/jstree/load/%taxonomy_vocabulary/%' => array(
+      'title' => 'Term Children',
+      'page callback' => 'jstree_taxonomy_tree_load',
+      'page arguments' => array(3, 4),
+      'access arguments' => array('access content'),
+      'delivery callback' => 'jstree_taxonomy_json_deliver',
+    ),
+    // Path for AJAX request to search for the term matching a search string
+    'taxonomy/jstree/search/%taxonomy_vocabulary/%' => array(
+      'title' => 'Search Term',
+      'page callback' => 'jstree_taxonomy_tree_search',
+      'page arguments' => array(3, 4),
+      'access arguments' => array('access content'),
+      'delivery callback' => 'jstree_taxonomy_json_deliver',
+    )
+  );
+}
+
+/**
+ * Package and send the result of a page callback to the browser as JSON.
+ *
+ * @param mixed $page_callback_result
+ *   The result of a page callback. Can be one of:
+ *   - NULL: to indicate no content.
+ *   - An integer menu status constant: to indicate an error condition.
+ *   - A string of HTML content.
+ *   - A renderable array of content.
+ *
+ * @see hook_menu()
+ * @see drupal_deliver_page()
+ * @see drupal_deliver_html_page()
+ * @see ajax_deliver()
+ */
+function jstree_taxonomy_json_deliver($page_callback_result) {
+  // Browsers do not allow JavaScript to read the contents of a user's local
+  // files. To work around that, the jQuery Form plugin submits forms containing
+  // a file input element to an IFRAME, instead of using XHR. Browsers do not
+  // normally expect JSON strings as content within an IFRAME, so the response
+  // must be customized accordingly.
+  // @see http://malsup.com/jquery/form/#file-upload
+  // @see Drupal.ajax.prototype.beforeSend()
+  $iframe_upload = !empty($_POST['ajax_iframe_upload']);
+
+  // Emit a Content-Type HTTP header if none has been added by the page callback
+  // or by a wrapping delivery callback.
+  if (is_null(drupal_get_http_header('Content-Type'))) {
+    if (!$iframe_upload) {
+      // Standard JSON can be returned to a browser's XHR object, and to
+      // non-browser user agents.
+      // @see http://www.ietf.org/rfc/rfc4627.txt?number=4627
+      drupal_add_http_header('Content-Type', 'application/json; charset=utf-8');
+    }
+    else {
+      // Browser IFRAMEs expect HTML. With most other content types, Internet
+      // Explorer presents the user with a download prompt.
+      drupal_add_http_header('Content-Type', 'text/html; charset=utf-8');
+    }
+  }
+
+  // Menu status constants are integers; JSON content is a string or array.
+  if (is_int($page_callback_result)) {
+    switch ($page_callback_result) {
+        case MENU_NOT_FOUND:
+          // Print a 404 page.
+          drupal_add_http_header('Status', '404 Not Found');
+          watchdog('page not found', check_plain($_GET['q']), NULL, WATCHDOG_WARNING);
+          break;
+        case MENU_ACCESS_DENIED:
+          // Print a 403 page.
+          drupal_add_http_header('Status', '403 Forbidden');
+          watchdog('access denied', check_plain($_GET['q']), NULL, WATCHDOG_WARNING);
+          break;
+        case MENU_SITE_OFFLINE:
+          // Print a 503 page.
+          drupal_add_http_header('Status', '503 Service unavailable');
+          break;
+    }
+    $page_callback_result = array('error' => drupal_get_http_header('Status'));
+  }
+  $json = drupal_json_encode($page_callback_result);
+  if (!$iframe_upload) {
+    // Standard JSON can be returned to a browser's XHR object, and to
+    // non-browser user agents.
+    print $json;
+  }
+  else {
+    // Browser IFRAMEs expect HTML. Browser extensions, such as Linkification
+    // and Skype's Browser Highlighter, convert URLs, phone numbers, etc. into
+    // links. This corrupts the JSON response. Protect the integrity of the
+    // JSON data by making it the value of a textarea.
+    // @see http://malsup.com/jquery/form/#file-upload
+    // @see http://drupal.org/node/1009382
+    print '<textarea>' . $json . '</textarea>';
+  }
+
+  // Perform end-of-request tasks.
+  ajax_footer();
+}
+
+/**
+ * Load the children of a given taxonomy term in a given vocabulary.
+ *
+ * @param object $vocabulary
+ *  A taxonomy vocabulary object.
+ *
+ * @param integer $parent
+ *  (optional) The tid of the taxonomy term. Or 0 to load root terms for the
+ *  given vocabulary.
+ *
+ */
+function jstree_taxonomy_tree_load($vocabulary, $parent = 0) {
+  $children = taxonomy_get_tree($vocabulary->vid, is_numeric($parent) ? $parent : 0, 1, TRUE);
+  foreach ($children as &$term) {
+    if (!empty($term->description) && !empty($term->format)) {
+      $term->description = check_markup($term->description, $term->format);
+      unset($term->format);
+      unset($term->depth);
+    }
+  }
+  return $children;
+}
+
+/**
+ * Search for the taxonomy terms matching a search string.
+ *
+ * @param unknown_type $vocabulary
+ * @param unknown_type $string
+ */
+function jstree_taxonomy_tree_search($vocabulary, $string) {
+  $results = array();
+  $query = new EntityFieldQuery();
+  $results = $query->entityCondition('entity_type', 'taxonomy_term')
+    ->propertyCondition('vid', $vocabulary->vid)
+    ->propertyCondition('name', $string, 'CONTAINS')
+    ->execute();
+  $lineages = array();
+  foreach($results['taxonomy_term'] as $tid => $term) {
+    $lineages[] = jstree_taxonomy_get_parents_all(taxonomy_term_load($tid));
+  }
+  foreach ($lineages as &$lineage) {
+    foreach ($lineage as &$term) {
+      if (!empty($term->description) && !empty($term->format)) {
+        $term->description = check_markup($term->description, $term->format);
+        unset($term->format);
+        unset($term->depth);
+      }
+    }
+  }
+  return $lineages;
+}
+
+/**
+ * Find all ancestors of a given term.
+ *
+ * @param object $term
+ *  A term object.
+ *
+ * @return
+ *  An array of lineages. Each lineage is an array of term object, from the
+ *  highest parent (ie. a root term) to the given $term itself.
+ */
+function &jstree_taxonomy_get_parents_all($term) {
+  $cache = array();//&drupal_static(__FUNCTION__, array());
+
+  if (isset($cache[$term->tid])) {
+    return $cache[$term->tid];
+  }
+
+  $lineages = array();
+  foreach(taxonomy_get_parents($term->tid) as $parent) {
+    $parent_lineages = jstree_taxonomy_get_parents_all($parent);
+    foreach ($parent_lineages as $lineage) {
+      $lineage[] =& $term;
+      $lineages[] = $lineage;
+    }
+  }
+  if (empty($lineages)) {
+    $lineages[] = array($term);
+  }
+
+  $cache[$term->tid] =& $lineages;
+
+  return $lineages;
+}

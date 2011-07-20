@@ -1,0 +1,6 @@
+name = jsTree Taxonomy
+description = jsTree widget for taxonomy
+core = 7.x
+
+dependencies[] = jquery_jstree
+dependencies[] = taxonomy

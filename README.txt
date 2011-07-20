@@ -5,7 +5,7 @@ Integration of the jsTree jQuery plugin (http://www.jstree.com/) as Drupal libra
 INSTALLATION
 ------------
 
-1. Copy the content of jstree_pre1.0_stable.zip archive directory to sites/all/libraries/jstree directory.
+1. Copy the content of jstree_pre1.0_stable.zip archive to jquery directory to your sites/all/libraries/jstree directory.
 
 2. Enable the module at Administer >> Site building >> Modules.
 

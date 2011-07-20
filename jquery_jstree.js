@@ -36,17 +36,14 @@
                  // Sync. tree-node selection to hidden fields in parent form. 
                   var inputName = tree.data('name');
                   tree.bind('select_node.jstree deselect_node.jstree', function(e, data) {
-                    console.log('sync.');
                     form.find('input.selected-node').remove();
                     tree.jstree('get_selected').each(function(index, node) {
-                      $.each($(node).data(), function(name, value) {
-                        $('<input></input>').attr({
-                          type: 'hidden',
-                          name: inputName + '[' + index + '][' + name + ']',
-                          value: value,
-                          'class': 'selected-node'
-                        }).appendTo(form);
-                      });
+                      $('<input></input>').attr({
+                        type: 'hidden',
+                        name: inputName + '[' + index + ']',
+                        value: $(node).data('form-value'),
+                        'class': 'selected-node'
+                      }).insertAfter(tree);
                     });
                   });
                   // Ensure that our sync. handler is always the first one
@@ -59,7 +56,6 @@
                   // Serialize the parent form when the tree triggers an ajax event
                   if (typeof Drupal.ajax === 'function' && Drupal.ajax.hasOwnProperty(id)) {
                     Drupal.ajax[id].beforeSerialize = function(element, options) {
-                      console.log('beforeSerialize');
                       $.each(form.serializeArray(), function(id, param) {
                         options.data[param.name] = param.value;
                       });

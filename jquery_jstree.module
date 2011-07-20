@@ -52,16 +52,11 @@ function jquery_jstree_element_info() {
   $types['jstree'] = array(
     '#theme' => 'jstree',
     '#pre_render' => array('jquery_jstree_element_pre_render'),
-    '#attached' => array(
-      // jsTree library
-      'library' => array(array('jquery_jstree', 'jstree')),
-      // Drupal behavior to initialize the tree.
-      'js' => array(drupal_get_path('module', 'jquery_jstree') . '/jquery_jstree.js')
-    ),
     '#attributes' => array(),
     '#tree_options' => array(),
     '#input' => TRUE,
     '#process' => array('ajax_process_form'),
+    '#theme_wrappers' => array('form_element'),
   );
   return $types;
 }
@@ -82,13 +77,21 @@ function jquery_jstree_element_pre_render($element) {
   }
   // Ensure plugins options is an array
   if (empty($element['#options']['plugins']) || !is_array($element['#options']['plugins'])) {
-    $element['#tree_options']['plugins'] = empty($element['#tree_options']['plugins']) ? array() : array($element['#tree_options']['plugins']);
+    $element['#tree_options']['plugins'] = empty($element['#tree_options']['plugins']) ? array() : $element['#tree_options']['plugins'];
   }
   // Attach JavaScript settings, used by our behavior to initialize the tree.
   $element['#attached']['js'][] = array(
     'type' => 'setting',
     'data' => array('jstree' => array($element['#attributes']['id'] => $element['#tree_options']))
   );
+  $element['#attached']['js'][] = array(
+    'type' => 'setting',
+    'data' => array('jstree' => array($element['#attributes']['id'] => $element['#tree_options']))
+  );
+  // Drupal behavior to initialize the tree.
+  $element['#attached']['js'][] = drupal_get_path('module', 'jquery_jstree') . '/jquery_jstree.js';
+  // jsTree library
+  $element['#attached']['library'][] = array('jquery_jstree', 'jstree');
   return $element;
 }
 
