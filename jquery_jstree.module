@@ -84,10 +84,6 @@ function jquery_jstree_element_pre_render($element) {
     'type' => 'setting',
     'data' => array('jstree' => array($element['#attributes']['id'] => $element['#tree_options']))
   );
-  $element['#attached']['js'][] = array(
-    'type' => 'setting',
-    'data' => array('jstree' => array($element['#attributes']['id'] => $element['#tree_options']))
-  );
   // Drupal behavior to initialize the tree.
   $element['#attached']['js'][] = drupal_get_path('module', 'jquery_jstree') . '/jquery_jstree.js';
   // jsTree library
