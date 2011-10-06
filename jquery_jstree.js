@@ -6,7 +6,7 @@
         $.each(settings.jstree, function (id, options) {
             if (settings.jstree.hasOwnProperty(id)) {
               // Retrieve the tree element
-              var tree = $('#'+id, context);
+              var tree = $('#'+id+':not(.jstree)', context);
               if (tree.length) {
                 // Pre-process options
                 $.each(options, function(plugin, plugin_options) {
