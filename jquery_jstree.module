@@ -28,7 +28,10 @@ function jquery_jstree_library() {
       'website' => 'http://www.jstree.com/',
       'version' => 'pre1.0',
       'js' => array(
-        $library_path . '/jquery.jstree.js' => array(),
+        array(
+          'data' => $library_path . '/jquery.jstree.js',
+          'preprocess' => FALSE
+        ),
       ),
     )
   );
